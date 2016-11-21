@@ -1,0 +1,8 @@
+sudo yum install epel-release
+
+# Turn of apache web server
+sudo systemctl stop httpd
+sudo systemctl disable httpd
+
+# Allow access to port 80
+sudo iptables -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
