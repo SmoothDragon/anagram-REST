@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-from bottle import route, run, response, request
+from __future__ import print_function
+
+# from bottle import route, run, response, request, static_file
+import bottle
 import json
 import collections
 import string
@@ -21,6 +24,23 @@ def distill_query(letters):
     numbers = filter(lambda x: x in string.digits, letters)
     blanks = int('0' + ''.join(numbers))
     return (''.join(sorted(required)), ''.join(sorted(x.upper() for x in optional)), blanks)
+
+def distill_query_dict(letters):
+    '''Break input into {required, optional, blanks}.
+    Uppercase letters are required.
+    Lowercase letters are optional.
+    A single numeric digit indicates the number of blanks.
+    >>> distill_query_dict('aDbEdF2')
+    {'required': 'DEF', 'optional': 'ABD', 'blanks': 2}
+    >>> distill_query_dict('rates1')
+    {'required': '', 'optional': 'AERST', 'blanks': 1}
+    '''
+    required = filter(lambda x: x in string.ascii_uppercase, letters)
+    optional = filter(lambda x: x in string.ascii_lowercase, letters)
+    # optional = optional.upper()
+    numbers = filter(lambda x: x in string.digits, letters)
+    blanks = int('0' + ''.join(numbers))
+    return {'required':''.join(sorted(required)), 'optional':''.join(sorted(x.upper() for x in optional)), 'blanks':blanks}
 
 def query_filter(query):
     '''Filter on words that satisfy required, optional and blank requirements.
@@ -110,16 +130,16 @@ def dict_flat2nested(F):
         nested_dict(result, keys, F[key])
     return result
 
-@route('/', method='POST')
+@bottle.route('/', method='POST')
 def anagram(data=None):
-    '''Receive an incoming json dictionary
+    '''Receive an incoming request form or json dictionary
+    For letterset:
+        1) Lowercase are optional
+        2) Uppercase are required
+        3) Any digit is the number of blanks
     INPUT
     {
-    letters:{
-        optional,
-        required,
-        blanks,
-        }
+    letterset:'exaMPL1',
     parameters:{
         min,
         max,
@@ -132,24 +152,25 @@ def anagram(data=None):
     #letters:[words]
     }
     '''
-    response.content_type = 'application/json'
-    print(dict(request.forms))
-    print(request.json)
+    bottle.response.content_type = 'application/json'
+    print(dict(bottle.request.forms))
+    print('json: ', bottle.request.json)
 
-    if request.json:
-        dic = request.json
+    if bottle.request.json:
+        dic = bottle.request.json
     else:
-        dic = dict_flat2nested(request.forms)
+        dic = dict(bottle.request.forms)
     print(dic)
-    query = distill_query(dic['letterset'])
-    f = query_filter(query)
+    query = distill_query_dict(dic['letterset'])
+    print(query)
+    qfilter = query_filter(query)
     # qfilter = query_filter(dic['letters'])
     # pfilter = param_filter(dic['parameters'])
 
     output = collections.defaultdict(list)
     with open('OWL14.txt', 'rt') as infile:
         words = (line.strip() for line in infile)
-        filters = (f, )
+        filters = (qfilter, )
         for f in filters:
             words = filter(f, words)
         for word in words:
@@ -157,15 +178,19 @@ def anagram(data=None):
     print(output)
     return output
 
-@route('/', method='GET')
+@bottle.route('/', method='GET')
 def anagram_form():
-    with open('resform.html', 'r') as infile:
+    return bottle.static_file('anagram_form.html', root='static/')
+    with open('static/anagram_form.html', 'r') as infile:
         data = infile.read()
     return data
 
+@bottle.route('/<filename:re:.*\.css>', method='GET')
+def stylesheets(filename):
+    return bottle.static_file(filename, root='static/')
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
 
-    run(host='0.0.0.0', port=80)
+    bottle.run(host='0.0.0.0', port=80)
