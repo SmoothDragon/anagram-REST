@@ -6,3 +6,9 @@ sudo systemctl disable httpd
 
 # Allow access to port 80
 sudo iptables -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+
+# See what programs are listening to ports
+sudo netstate -tulpn
+
+# See what process is using port 80
+sudo netstat -nlp | grep :80

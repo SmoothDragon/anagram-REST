@@ -7,6 +7,7 @@ import bottle
 import json
 import collections
 import string
+import urllib
 
 def distill_query(letters):
     '''Break input into (required, optional, blanks).
@@ -130,6 +131,18 @@ def dict_flat2nested(F):
         nested_dict(result, keys, F[key])
     return result
 
+
+def getQueryDict(url):
+    scheme, netloc, path, query, fragment = urllib.parse.urlsplit(url)
+    query = urllib.parse.parse_qs(query)
+    return query
+
+
+@bottle.get('/anagram')
+def anagram2():
+    query = getQueryDict(bottle.request.url)
+    pass
+
 @bottle.route('/', method='POST')
 def anagram(data=None):
     '''Receive an incoming request form or json dictionary
@@ -189,8 +202,24 @@ def anagram_form():
 def stylesheets(filename):
     return bottle.static_file(filename, root='static/')
 
+def define_word(word):
+    word = word.upper()
+    def_file = 'OWL14.def'
+    with open(def_file) as infile:
+        for line in infile:
+            if line.split()[0] == word:
+                return line
+                break
+        else:
+            return('***UNACCEPTABLE***\n')
+
+@bottle.route('/define/:word')
+def index(word):
+    response = define_word(word)
+    return bottle.template(response)
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
 
-    bottle.run(host='0.0.0.0', port=80)
+    bottle.run(host='0.0.0.0', port=80, server='eventlet')
